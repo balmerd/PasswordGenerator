@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Password Generator</title>
+  <style>
+    body {
+      margin: 0;
+    }
+    form {
+      display: inline-block;
+      margin: 0.5rem;
+      vertical-align: top;
+    }
+    section {
+      margin: 1rem;
+      margin-bottom: 2rem;
+    }
+    footer {
+      position: fixed;
+      width: 100%;
+      bottom: 0;
+      height: 2rem;
+      line-height: 2rem;
+      vertical-align: middle;
+      padding: 0 0.5rem;
+      background-color: aliceblue;
+      border-top: 1px solid #ddd;
+    }
+    #matrix {
+      display: inline-block;
+      width: 16rem;
+    }
+    .box {
+      display: inline-block;
+      width: 2rem;
+      padding: 2px;           
+      margin: 0.5rem 0;
+      text-align: center;
+      border: 1px solid #000;
+    }
+    .legend {
+      font-size: 0.75rem;
+    }
+  </style>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.0/handlebars.min.js"></script>
+  <script id="matrixTemplate" type="text/x-handlebars-template">
+    {{#data}}
+      <div class="box">{{this}}</div>
+    {{/data}}
+    <div class="legend">movement pattern: NORTH/EAST/SOUTH/WEST</div>
+  </script>
+</head>
+<body>
+  <section role="main">
+    <div id="matrix"></div>
+    <form>
+      <input type="text" id="plaintext" value="" autofocus="true">
+      <button onclick="return generate();">GENERATE PASSWORD</button>
+      <button onclick="return newMatrix();">CREATE NEW MATRIX</button>
+      <div id="result"></div>
+    </form>
+  </section>
+  <footer>Based on <a href="http://www.infoworld.com/article/2978323/security/tired-of-memorizing-passwords-a-turing-award-winner-came-up-with-this-algorithmic-trick.html" target="_blank">http://www.infoworld.com/article/2978323/security/tired-of-memorizing-passwords-a-turing-award-winner-came-up-with-this-algorithmic-trick.html</a></footer>
+  <script>
+    var randomChars = 'J25TNDBO7CXLGYPKE6H4I0RUZ1W3Q98VMFSA'.split('');
+    var template = Handlebars.compile(document.querySelector("#matrixTemplate").innerHTML);
+
+    var row = 0;
+    var column = 0;
+    var maxColumns = 6;
+
+    var matrix = [[]];
+    var lastColumn = maxColumns - 1;
+    var lastRow = (randomChars.length / maxColumns) - 1;
+
+    var move = 0;
+    var moves = 'NORTH,EAST,SOUTH,WEST'.split(',');
+    var log = [];
+
+    function init() {
+      var tmp = {};
+
+      document.querySelector("#matrix").innerHTML = template({ data: randomChars });
+
+      randomChars.forEach(function (char) {
+        tmp[char] = {
+          row: row,
+          column: column
+        };
+
+        matrix[row][column] = char;
+
+        if (column++ === lastColumn) {
+          column = 0;
+          if (row < lastRow) {
+            row++;
+            matrix.push([]);
+          }
+        }
+      });
+
+      randomChars = tmp; // replace array with object hash
+
+      document.querySelector('#result').innerHTML = '';
+    }
+
+    function newMatrix() {
+      var tmp = [];
+      var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+
+      var getRandom = function (min, max) {
+        return r = Math.floor(Math.random() * (max - min + 1)) + min;
+      } .bind(null, 0, chars.length - 1);
+
+      chars.forEach(function (char) {
+        var r = getRandom();
+
+        while (tmp[r]) { // find an empty slot
+          r = getRandom();
+        }
+
+        tmp[r] = char;
+      });
+
+      randomChars = tmp;
+
+      init();
+
+      return false;
+    }
+
+    function nextMove(char) {
+      var obj = randomChars[char];
+      var nextRow, nextColumn;
+
+      if (!obj) { // ignore any chars not found in randomChars eg: "."
+        return;
+      }
+
+      var direction = moves[move++];
+
+      if (move === moves.length) {
+        move = 0;
+      }
+
+      row = nextRow = obj.row;
+      column = nextColumn = obj.column;
+
+      switch (direction) {
+        case 'NORTH':
+          nextRow = (row === 0 ? lastRow : row - 1);
+          break;
+        case 'SOUTH':
+          nextRow = (row === lastRow ? 0 : row + 1);
+          break;
+        case 'EAST':
+          nextColumn = (column === lastColumn ? 0 : column + 1);
+          break;
+        case 'WEST':
+          nextColumn = (column === 0 ? lastColumn : column - 1);
+          break;
+      }
+
+      log.push('move(' + char + ') at row=' + (row + 1) + ', column=' + (column + 1) + ' ' + direction + ' to row=' + (nextRow + 1) + ', column=' + (nextColumn + 1) + ', result(' + matrix[nextRow][nextColumn] + ')');
+
+      return matrix[nextRow][nextColumn];
+    }
+
+    function generate() {
+      var password = [];
+      var originalStr = document.querySelector('#plaintext').value.trim()
+      var str = originalStr.toUpperCase();
+
+      if (str.length) {
+        move = (/[AEIOU]/).test(str[0]) ? 0 : 1;
+        log = ['starting at ' + moves[move] + ' because first char ' + (move === 0 ? 'is' : 'is NOT') + ' [AEIOU]'];
+
+        str.split('').forEach(function (char) {
+          password.push(nextMove(char));
+        });
+
+        document.querySelector('#result').innerHTML = log.join('<br>') + '<br><h1>' + originalStr + ' = ' + password.join('') + '</h1>';
+      }
+
+      return false;
+    }
+
+    init();
+
+  </script>
+</body>
+</html>
